@@ -1,3 +1,4 @@
+print("begin")
 import whisper
 import srt
 from datetime import timedelta
@@ -41,3 +42,14 @@ def transcribe_audio_to_srt(audio_path, model_size="base", segment_duration=30):
     except Exception as e:
         print(f"An error occurred during transcription to SRT: {e}")
         return ""
+    
+
+
+if __name__ == "__main__":
+    audio_file = "audios/extracted_audio.mp3"
+    print(f"Transcribing audio file to SRT: {audio_file}")
+    srt_transcription = transcribe_audio_to_srt(audio_file, model_size="base", segment_duration=30)
+    print("SRT Transcription: ",srt_transcription)
+    with open("transcription.srt", "w", encoding="utf-8") as srt_file:
+        srt_file.write(srt_transcription)                     
+    print("SRT transcription saved to transcription.srt")
