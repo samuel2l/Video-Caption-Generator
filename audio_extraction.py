@@ -19,10 +19,10 @@ def extract_audio_from_video(video_path, output_audio_path):
 
         print(f"An error occurred: {e}")
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    video_file = "videos/test.mp4"
-    audio_file = "audios/extracted_audio.mp3"    
-    extract_audio_from_video(video_file, audio_file)
-    print(f"Audio extracted and saved to {audio_file}")
+#     video_file = "videos/test.mp4"
+#     audio_file = "audios/extracted_audio.mp3"    
+#     extract_audio_from_video(video_file, audio_file)
+#     print(f"Audio extracted and saved to {audio_file}")
 

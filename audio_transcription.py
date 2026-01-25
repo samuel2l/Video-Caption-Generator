@@ -19,9 +19,9 @@ def transcribe_audio(audio_path, model_size="base"):
         print(f"An error occurred during transcription: {e}")
         return ""
 
-if __name__ == "__main__":
-    audio_file = "audios/extracted_audio.mp3"
-    print(f"Transcribing audio file: {audio_file}")
-    transcription = transcribe_audio(audio_file, model_size="base")
-    print("Transcription:")
-    print(transcription)    
+# if __name__ == "__main__":
+#     audio_file = "audios/extracted_audio.mp3"
+#     print(f"Transcribing audio file: {audio_file}")
+#     transcription = transcribe_audio(audio_file, model_size="base")
+#     print("Transcription:")
+#     print(transcription)    
