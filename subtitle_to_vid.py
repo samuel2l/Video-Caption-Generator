@@ -160,6 +160,10 @@ def create_text_image(text, video_width, video_height, fontsize=12, fontcolor='w
     if bg_opacity > 0:
         draw.rectangle([0, 0, box_width, box_height],
                        fill=(bg_rgb[0], bg_rgb[1], bg_rgb[2], bg_opacity))
+    # Debug: print if background should be transparent
+    # (commented out to avoid spam, uncomment if needed)
+    # if bg_opacity == 0:
+    #     print(f"  DEBUG: Background opacity is 0, should be transparent")
     
     # Draw text
     if fontcolor == 'white':
@@ -174,14 +178,16 @@ def create_text_image(text, video_width, video_height, fontsize=12, fontcolor='w
         if line:
             text_x = (box_width - line_widths[i]) // 2
             
-            # Draw black outline for better visibility when no background
+            # Draw subtle black outline for better visibility when no background
+            # Only draw outline if bg_opacity is 0 (transparent background)
             if bg_opacity == 0 and fontcolor == 'white':
-                outline_width = 2
-                for adj in range(-outline_width, outline_width + 1):
-                    for adj2 in range(-outline_width, outline_width + 1):
-                        if adj != 0 or adj2 != 0:
-                            draw.text((text_x + adj, y_offset + adj2), line, 
-                                     fill=(0, 0, 0, 255), font=font)
+                outline_width = 1  # Very thin outline
+                # Draw outline in 4 directions only (top, bottom, left, right) for subtlety
+                outline_positions = [(-outline_width, 0), (outline_width, 0), 
+                                    (0, -outline_width), (0, outline_width)]
+                for adj, adj2 in outline_positions:
+                    draw.text((text_x + adj, y_offset + adj2), line, 
+                             fill=(0, 0, 0, 180), font=font)  # Semi-transparent black outline
             
             # Draw main text
             draw.text((text_x, y_offset), line, fill=text_rgb, font=font)
@@ -222,6 +228,7 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
     # Use the font size as specified - no auto-scaling
     print(f"Using font size: {fontsize}")
     print(f"Video resolution: {video_w}x{video_h}")
+    print(f"Background opacity: {bg_opacity} (0 = transparent, 255 = opaque)")
     # Suggest appropriate font size based on video height
     suggested_fontsize = max(12, int(video_h * 0.02))  # About 2% of video height
     if fontsize > suggested_fontsize + 5:
@@ -252,8 +259,13 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
         
         temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
         temp_files.append(temp_file.name)
-        text_img.save(temp_file.name, 'PNG')
+        # Save PNG with alpha channel explicitly preserved
+        text_img.save(temp_file.name, 'PNG', optimize=False)
         temp_file.close()
+        
+        # Debug first subtitle
+        if i == 0:
+            print(f"  First subtitle - bg_opacity: {bg_opacity}, image mode: {text_img.mode}")
         
         # Create ImageClip and position at the calculated bottom position
         txt_clip = ImageClip(temp_file.name)
@@ -512,9 +524,9 @@ if __name__ == "__main__":
     # - model_size="medium": ~45-60 min processing, more accurate but slower
     add_english_subtitles_to_video(
         input_video_path='videos/test.mp4',
-        output_video_path='videos/test_2.mp4',
+        output_video_path='videos/test_3.mp4',
         model_size="base",  # For 40-min videos, "base" or "small" recommended
-        fontsize=8,  # Smaller font size - try 10-14 for smaller text
+        fontsize=12,  # Smaller font size - try 10-14 for smaller text
         fontcolor='white',
         bgcolor='black',
         bg_opacity=0  # Transparent background
