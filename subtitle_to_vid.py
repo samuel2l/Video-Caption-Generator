@@ -75,43 +75,47 @@ def wrap_text(draw, text, font, max_width):
     return lines if lines else [text]
 
 
-def create_text_image(text, width, height, fontsize=24, fontcolor='white', 
-                     bgcolor='black', bg_opacity=128):
-    """Create a PIL image with text on a semi-transparent background."""
-    # Create image with alpha channel - full video size
-    img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+def create_text_image(text, video_width, video_height, fontsize=12, fontcolor='white', 
+                     bgcolor='black', bg_opacity=0):
+    """Create a PIL image with just the subtitle box (not full video size).
+    Returns (image, position_x, position_y) for positioning on video.
+    """
+    # Create a temporary image to calculate text dimensions
+    temp_img = Image.new('RGBA', (100, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(temp_img)
     
     # Try to use a system font, fallback to default if not available
     try:
-        # Try common macOS fonts
         font_paths = [
-            '/System/Library/Fonts/Helvetica.ttc',
-            '/System/Library/Fonts/Arial.ttf',
+            '/System/Library/Fonts/Supplemental/Arial.ttf',
             '/Library/Fonts/Arial.ttf',
+            '/System/Library/Fonts/Helvetica.ttc',
         ]
         font = None
+        font_loaded = None
         for font_path in font_paths:
             if os.path.exists(font_path):
                 try:
                     font = ImageFont.truetype(font_path, fontsize)
+                    font_loaded = font_path
                     break
-                except:
+                except Exception as e:
                     continue
         if font is None:
             font = ImageFont.load_default()
+            font_loaded = "default"
     except:
         font = ImageFont.load_default()
+        font_loaded = "default"
     
-    # Limit subtitle box to 75% of video width for better proportions
-    max_box_width = int(width * 0.75)
-    padding = 12
+    # Limit subtitle box to 75% of video width
+    max_box_width = int(video_width * 0.75)
+    padding = 10
     
-    # First split by newlines (preserve intentional line breaks)
+    # Wrap text to fit within max width
     paragraphs = text.split('\n')
     wrapped_lines = []
     
-    # Wrap each paragraph
     for para in paragraphs:
         if para.strip():
             wrapped = wrap_text(draw, para.strip(), font, max_box_width - padding * 2)
@@ -122,6 +126,7 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
     # Calculate dimensions for all wrapped lines
     line_heights = []
     line_widths = []
+    line_spacing = int(fontsize * 0.2)
     
     for line in wrapped_lines:
         if line:
@@ -130,20 +135,18 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
             line_heights.append(line_h)
         else:
             line_widths.append(0)
-            line_heights.append(fontsize * 0.3)  # Small spacing for empty lines
+            line_heights.append(int(fontsize * 0.3))
     
     # Calculate box dimensions
     max_line_width = max(line_widths) if line_widths else 0
-    total_height = sum(line_heights) + (len(wrapped_lines) - 1) * fontsize * 0.15
+    total_text_height = sum(line_heights) + (len(wrapped_lines) - 1) * line_spacing
     
-    # Ensure box doesn't exceed max width
     box_width = min(int(max_line_width + padding * 2), max_box_width)
-    box_height = int(total_height + padding * 2)
+    box_height = int(total_text_height + padding * 2)
     
-    # Position box at bottom center - ensure it's actually at the bottom
-    box_x = (width - box_width) // 2
-    # Position at bottom with small margin (20px from bottom edge)
-    box_y = height - box_height - 20
+    # Now create the actual subtitle image (just the box size, not full video)
+    img = Image.new('RGBA', (box_width, box_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
     
     # Convert color names to RGB
     if bgcolor == 'black':
@@ -153,12 +156,12 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
     else:
         bg_rgb = (0, 0, 0)
     
-    # Draw background box only if opacity is set
+    # Draw background box only if opacity > 0
     if bg_opacity > 0:
-        draw.rectangle([box_x, box_y, box_x + box_width, box_y + box_height],
+        draw.rectangle([0, 0, box_width, box_height],
                        fill=(bg_rgb[0], bg_rgb[1], bg_rgb[2], bg_opacity))
     
-    # Draw text with outline for better visibility when no background
+    # Draw text
     if fontcolor == 'white':
         text_rgb = (255, 255, 255)
     elif fontcolor == 'black':
@@ -166,10 +169,10 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
     else:
         text_rgb = (255, 255, 255)
     
-    y_offset = box_y + padding
+    y_offset = padding
     for i, line in enumerate(wrapped_lines):
         if line:
-            text_x = box_x + (box_width - line_widths[i]) // 2
+            text_x = (box_width - line_widths[i]) // 2
             
             # Draw black outline for better visibility when no background
             if bg_opacity == 0 and fontcolor == 'white':
@@ -182,13 +185,18 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
             
             # Draw main text
             draw.text((text_x, y_offset), line, fill=text_rgb, font=font)
-        y_offset += line_heights[i] + fontsize * 0.15
+        y_offset += line_heights[i] + line_spacing
     
-    return img
+    # Calculate position: centered horizontally, at bottom with margin
+    pos_x = (video_width - box_width) // 2
+    bottom_margin = int(video_height * 0.05)  # 5% margin from bottom
+    pos_y = video_height - box_height - bottom_margin
+    
+    return img, pos_x, pos_y
 
 
 def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path,
-                               fontsize=16, fontcolor='white', 
+                               fontsize=12, fontcolor='white', 
                                bgcolor='black', bg_opacity=0):
     """
     Burns subtitles from an SRT file into a video file using moviepy and PIL.
@@ -211,16 +219,13 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
     video = VideoFileClip(input_video_path)
     video_w, video_h = video.size
     
-    # Auto-scale font size based on video height
-    # Subtitles should be roughly 2-2.5% of video height for better readability
-    auto_fontsize = max(14, min(26, int(video_h * 0.025)))
-    if fontsize == 16:  # Only auto-scale if using default
-        if auto_fontsize != fontsize:
-            print(f"Auto-scaling font size: {fontsize} -> {auto_fontsize} (based on video height)")
-            fontsize = auto_fontsize
-    else:
-        # If user specified a fontsize, still cap it at reasonable max
-        fontsize = min(fontsize, auto_fontsize + 4)
+    # Use the font size as specified - no auto-scaling
+    print(f"Using font size: {fontsize}")
+    print(f"Video resolution: {video_w}x{video_h}")
+    # Suggest appropriate font size based on video height
+    suggested_fontsize = max(12, int(video_h * 0.02))  # About 2% of video height
+    if fontsize > suggested_fontsize + 5:
+        print(f"  Note: Font size {fontsize} may be large for this video. Suggested: {suggested_fontsize}")
     
     print(f"Parsing subtitles: {srt_file_path}")
     subtitles = parse_srt(srt_file_path)
@@ -242,25 +247,27 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
         if show_progress and (i + 1) % 50 == 0:
             print(f"  Progress: {i + 1}/{total_segments} subtitle images created...")
         
-        text_img = create_text_image(text, video_w, video_h, fontsize, 
-                                     fontcolor, bgcolor, bg_opacity)
+        text_img, pos_x, pos_y = create_text_image(text, video_w, video_h, fontsize, 
+                                                    fontcolor, bgcolor, bg_opacity)
         
         temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
         temp_files.append(temp_file.name)
         text_img.save(temp_file.name, 'PNG')
         temp_file.close()
         
-        # Create ImageClip - image is full video size with text positioned at bottom
-        # The image has transparent background with text box at bottom, so we position at origin
+        # Create ImageClip and position at the calculated bottom position
         txt_clip = ImageClip(temp_file.name)
+        
+        # Debug: print size of first clip
+        if i == 0:
+            print(f"  Video dimensions: {video_w}x{video_h}")
+            print(f"  Subtitle box size: {txt_clip.size}")
+            print(f"  Subtitle position: ({pos_x}, {pos_y})")
+        
         txt_clip = txt_clip.set_duration(end - start).set_start(start)
         
-        # Ensure clip matches video dimensions exactly
-        if txt_clip.size != (video_w, video_h):
-            txt_clip = txt_clip.resize((video_w, video_h))
-        
-        # Position at top-left (0,0) since text is already positioned at bottom in the image
-        txt_clip = txt_clip.set_position((0, 0))
+        # Position the subtitle box at the bottom of the screen
+        txt_clip = txt_clip.set_position((pos_x, pos_y))
         
         text_clips.append(txt_clip)
     
@@ -382,7 +389,7 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
 
 
 def add_english_subtitles_to_video(input_video_path, output_video_path, 
-                                   model_size="base", fontsize=16, fontcolor='white',
+                                   model_size="base", fontsize=12, fontcolor='white',
                                    bgcolor='black', bg_opacity=0, 
                                    keep_temp_files=False):
     """
@@ -504,10 +511,10 @@ if __name__ == "__main__":
     # - model_size="small": ~20-30 min processing, faster but slightly less accurate
     # - model_size="medium": ~45-60 min processing, more accurate but slower
     add_english_subtitles_to_video(
-        input_video_path='videos/ep_11.mp4',
-        output_video_path='videos/ep_11_eng_sub.mp4',
+        input_video_path='videos/test.mp4',
+        output_video_path='videos/test_2.mp4',
         model_size="base",  # For 40-min videos, "base" or "small" recommended
-        fontsize=16,  # Default font size
+        fontsize=8,  # Smaller font size - try 10-14 for smaller text
         fontcolor='white',
         bgcolor='black',
         bg_opacity=0  # Transparent background
