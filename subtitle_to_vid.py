@@ -36,10 +36,49 @@ def parse_srt(srt_file_path):
     return subtitles
 
 
+def get_text_size(draw, text, font):
+    """Get text size, compatible with different PIL versions."""
+    try:
+        # Try newer getbbox method
+        bbox = font.getbbox(text)
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+    except AttributeError:
+        # Fallback to older textsize method
+        try:
+            return draw.textsize(text, font=font)
+        except:
+            # Last resort: estimate
+            return len(text) * 10, 20
+
+
+def wrap_text(draw, text, font, max_width):
+    """Wrap text to fit within max_width pixels."""
+    words = text.split(' ')
+    lines = []
+    current_line = []
+    
+    for word in words:
+        # Test if adding this word would exceed max_width
+        test_line = ' '.join(current_line + [word])
+        test_width, _ = get_text_size(draw, test_line, font)
+        
+        if test_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+    
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    return lines if lines else [text]
+
+
 def create_text_image(text, width, height, fontsize=24, fontcolor='white', 
                      bgcolor='black', bg_opacity=128):
     """Create a PIL image with text on a semi-transparent background."""
-    # Create image with alpha channel
+    # Create image with alpha channel - full video size
     img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
@@ -64,27 +103,47 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
     except:
         font = ImageFont.load_default()
     
-
-    lines = text.split('\n')
+    # Limit subtitle box to 75% of video width for better proportions
+    max_box_width = int(width * 0.75)
+    padding = 12
+    
+    # First split by newlines (preserve intentional line breaks)
+    paragraphs = text.split('\n')
+    wrapped_lines = []
+    
+    # Wrap each paragraph
+    for para in paragraphs:
+        if para.strip():
+            wrapped = wrap_text(draw, para.strip(), font, max_box_width - padding * 2)
+            wrapped_lines.extend(wrapped)
+        else:
+            wrapped_lines.append('')
+    
+    # Calculate dimensions for all wrapped lines
     line_heights = []
     line_widths = []
     
-    for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font)
-        line_widths.append(bbox[2] - bbox[0])
-        line_heights.append(bbox[3] - bbox[1])
+    for line in wrapped_lines:
+        if line:
+            line_w, line_h = get_text_size(draw, line, font)
+            line_widths.append(line_w)
+            line_heights.append(line_h)
+        else:
+            line_widths.append(0)
+            line_heights.append(fontsize * 0.3)  # Small spacing for empty lines
     
-    total_height = sum(line_heights) + (len(lines) - 1) * fontsize * 0.2
-    max_width = max(line_widths) if line_widths else 0
+    # Calculate box dimensions
+    max_line_width = max(line_widths) if line_widths else 0
+    total_height = sum(line_heights) + (len(wrapped_lines) - 1) * fontsize * 0.15
     
-    # Add padding
-    padding = 10
-    box_width = int(max_width + padding * 2)
+    # Ensure box doesn't exceed max width
+    box_width = min(int(max_line_width + padding * 2), max_box_width)
     box_height = int(total_height + padding * 2)
     
-    # Draw background box
+    # Position box at bottom center - ensure it's actually at the bottom
     box_x = (width - box_width) // 2
-    box_y = height - box_height - 20 
+    # Position at bottom with small margin (20px from bottom edge)
+    box_y = height - box_height - 20
     
     # Convert color names to RGB
     if bgcolor == 'black':
@@ -92,31 +151,45 @@ def create_text_image(text, width, height, fontsize=24, fontcolor='white',
     elif bgcolor == 'white':
         bg_rgb = (255, 255, 255)
     else:
-        bg_rgb = (0, 0, 0)  # default to black
+        bg_rgb = (0, 0, 0)
     
-    draw.rectangle([box_x, box_y, box_x + box_width, box_y + box_height],
-                   fill=(bg_rgb[0], bg_rgb[1], bg_rgb[2], bg_opacity))
+    # Draw background box only if opacity is set
+    if bg_opacity > 0:
+        draw.rectangle([box_x, box_y, box_x + box_width, box_y + box_height],
+                       fill=(bg_rgb[0], bg_rgb[1], bg_rgb[2], bg_opacity))
     
-    # Draw text
+    # Draw text with outline for better visibility when no background
     if fontcolor == 'white':
         text_rgb = (255, 255, 255)
     elif fontcolor == 'black':
         text_rgb = (0, 0, 0)
     else:
-        text_rgb = (255, 255, 255)  # default to white
+        text_rgb = (255, 255, 255)
     
     y_offset = box_y + padding
-    for i, line in enumerate(lines):
-        text_x = box_x + (box_width - line_widths[i]) // 2
-        draw.text((text_x, y_offset), line, fill=text_rgb, font=font)
-        y_offset += line_heights[i] + fontsize * 0.2
+    for i, line in enumerate(wrapped_lines):
+        if line:
+            text_x = box_x + (box_width - line_widths[i]) // 2
+            
+            # Draw black outline for better visibility when no background
+            if bg_opacity == 0 and fontcolor == 'white':
+                outline_width = 2
+                for adj in range(-outline_width, outline_width + 1):
+                    for adj2 in range(-outline_width, outline_width + 1):
+                        if adj != 0 or adj2 != 0:
+                            draw.text((text_x + adj, y_offset + adj2), line, 
+                                     fill=(0, 0, 0, 255), font=font)
+            
+            # Draw main text
+            draw.text((text_x, y_offset), line, fill=text_rgb, font=font)
+        y_offset += line_heights[i] + fontsize * 0.15
     
     return img
 
 
 def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path,
-                               fontsize=24, fontcolor='white', 
-                               bgcolor='black', bg_opacity=128):
+                               fontsize=16, fontcolor='white', 
+                               bgcolor='black', bg_opacity=0):
     """
     Burns subtitles from an SRT file into a video file using moviepy and PIL.
 
@@ -137,6 +210,17 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
     print(f"Loading video: {input_video_path}")
     video = VideoFileClip(input_video_path)
     video_w, video_h = video.size
+    
+    # Auto-scale font size based on video height
+    # Subtitles should be roughly 2-2.5% of video height for better readability
+    auto_fontsize = max(14, min(26, int(video_h * 0.025)))
+    if fontsize == 16:  # Only auto-scale if using default
+        if auto_fontsize != fontsize:
+            print(f"Auto-scaling font size: {fontsize} -> {auto_fontsize} (based on video height)")
+            fontsize = auto_fontsize
+    else:
+        # If user specified a fontsize, still cap it at reasonable max
+        fontsize = min(fontsize, auto_fontsize + 4)
     
     print(f"Parsing subtitles: {srt_file_path}")
     subtitles = parse_srt(srt_file_path)
@@ -166,10 +250,17 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
         text_img.save(temp_file.name, 'PNG')
         temp_file.close()
         
-        txt_clip = (ImageClip(temp_file.name)
-                   .set_duration(end - start)
-                   .set_start(start)
-                   .set_position(('center', 'bottom')))
+        # Create ImageClip - image is full video size with text positioned at bottom
+        # The image has transparent background with text box at bottom, so we position at origin
+        txt_clip = ImageClip(temp_file.name)
+        txt_clip = txt_clip.set_duration(end - start).set_start(start)
+        
+        # Ensure clip matches video dimensions exactly
+        if txt_clip.size != (video_w, video_h):
+            txt_clip = txt_clip.resize((video_w, video_h))
+        
+        # Position at top-left (0,0) since text is already positioned at bottom in the image
+        txt_clip = txt_clip.set_position((0, 0))
         
         text_clips.append(txt_clip)
     
@@ -291,8 +382,8 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
 
 
 def add_english_subtitles_to_video(input_video_path, output_video_path, 
-                                   model_size="base", fontsize=24, fontcolor='white',
-                                   bgcolor='black', bg_opacity=180, 
+                                   model_size="base", fontsize=16, fontcolor='white',
+                                   bgcolor='black', bg_opacity=0, 
                                    keep_temp_files=False):
     """
     Complete pipeline: Extracts audio from video, transcribes and translates to English,
@@ -401,10 +492,10 @@ if __name__ == "__main__":
     #     input_video_path='videos/test.mp4',
     #     srt_file_path='transcription.srt',
     #     output_video_path='videos/test_captioned.mp4',
-    #     fontsize=24,
+    #     fontsize=16,
     #     fontcolor='white',
     #     bgcolor='black',
-    #     bg_opacity=180
+    #     bg_opacity=0  # Transparent background
     # )
     
     # Option 2: Automatically transcribe and translate video to English subtitles
@@ -413,11 +504,11 @@ if __name__ == "__main__":
     # - model_size="small": ~20-30 min processing, faster but slightly less accurate
     # - model_size="medium": ~45-60 min processing, more accurate but slower
     add_english_subtitles_to_video(
-        input_video_path='videos/test.mp4',
-        output_video_path='videos/test_english_subtitles.mp4',
+        input_video_path='videos/ep_11.mp4',
+        output_video_path='videos/ep_11_eng_sub.mp4',
         model_size="base",  # For 40-min videos, "base" or "small" recommended
-        fontsize=24,
+        fontsize=16,  # Default font size
         fontcolor='white',
         bgcolor='black',
-        bg_opacity=180
+        bg_opacity=0  # Transparent background
     )
