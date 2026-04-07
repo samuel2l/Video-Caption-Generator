@@ -279,10 +279,14 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
             print(f"  Subtitle box size: {txt_clip.size}")
             print(f"  Subtitle position: ({pos_x}, {pos_y})")
         
-        txt_clip = txt_clip.set_duration(end - start).set_start(start)
-        
-        # Position the subtitle box at the bottom of the screen
-        txt_clip = txt_clip.set_position((pos_x, pos_y))
+        # MoviePy v1 uses set_* methods, v2 uses with_* methods.
+        clip_duration = end - start
+        if hasattr(txt_clip, "set_duration"):
+            txt_clip = txt_clip.set_duration(clip_duration).set_start(start)
+            txt_clip = txt_clip.set_position((pos_x, pos_y))
+        else:
+            txt_clip = txt_clip.with_duration(clip_duration).with_start(start)
+            txt_clip = txt_clip.with_position((pos_x, pos_y))
         
         text_clips.append(txt_clip)
     
@@ -294,13 +298,35 @@ def burn_subtitles_into_video(input_video_path, srt_file_path, output_video_path
     final_video = CompositeVideoClip([video] + text_clips)
     
     print(f"Writing output to: {output_video_path}")
-    final_video.write_videofile(output_video_path, 
-                                 codec='libx264',
-                                 audio_codec='aac',
-                                 temp_audiofile='temp-audio.m4a',
-                                 remove_temp=True,
-                                 verbose=False,
-                                 logger=None)
+    # MoviePy v1/v2 have different write_videofile signatures.
+    try:
+        final_video.write_videofile(
+            output_video_path,
+            codec='libx264',
+            audio_codec='aac',
+            temp_audiofile='temp-audio.m4a',
+            remove_temp=True,
+            verbose=False,
+            logger=None,
+        )
+    except TypeError:
+        try:
+            final_video.write_videofile(
+                output_video_path,
+                codec='libx264',
+                audio_codec='aac',
+                temp_audiofile='temp-audio.m4a',
+                remove_temp=True,
+                logger=None,
+            )
+        except TypeError:
+            final_video.write_videofile(
+                output_video_path,
+                codec='libx264',
+                audio_codec='aac',
+                temp_audiofile='temp-audio.m4a',
+                remove_temp=True,
+            )
     
     # Clean up temporary files
     for temp_file in temp_files:

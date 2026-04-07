@@ -62,13 +62,14 @@ def run_pipeline_job(
         update_job(
             job_id,
             status="running",
-            stage="Processing video",
-            progress=10,
+            stage="Extracting audio",
+            progress=5,
             started_at=datetime.utcnow().isoformat(),
         )
 
         with redirect_stdout(log_stream), redirect_stderr(log_stream):
             extract_audio_from_video(str(input_path), str(temp_audio_path))
+            update_job(job_id, stage="Transcribing audio", progress=35)
             transcribe_audio_to_srt(
                 str(temp_audio_path),
                 model_size=model_size,
@@ -77,6 +78,7 @@ def run_pipeline_job(
             )
 
             if output_mode in {"burned_video", "both"}:
+                update_job(job_id, stage="Burning subtitles into video", progress=70)
                 burn_subtitles_into_video(
                     input_video_path=str(input_path),
                     srt_file_path=str(output_srt_path),
@@ -86,6 +88,8 @@ def run_pipeline_job(
                     bgcolor=bgcolor,
                     bg_opacity=bg_opacity,
                 )
+            else:
+                update_job(job_id, stage="Preparing subtitle file", progress=85)
 
         update_job(
             job_id,
@@ -196,14 +200,7 @@ def get_job(job_id: str):
     if not job:
         return jsonify({"error": "Job not found."}), 404
 
-    response = dict(job)
-    if response["status"] == "running":
-        # Minimal time-based progress for better UI feedback.
-        current_progress = response.get("progress", 10)
-        response["progress"] = min(95, max(10, current_progress + 1))
-        update_job(job_id, progress=response["progress"])
-
-    return jsonify(response)
+    return jsonify(dict(job))
 
 
 @app.get("/api/download/<filename>")
