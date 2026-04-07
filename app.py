@@ -19,10 +19,11 @@ from subtitle_to_vid import (
 BASE_DIR = Path(__file__).resolve().parent
 LOCAL_STORAGE_DIR = BASE_DIR / "local_storage"
 UPLOADS_DIR = LOCAL_STORAGE_DIR / "uploads"
-OUTPUTS_DIR = LOCAL_STORAGE_DIR / "outputs"
+VIDEOS_DIR = LOCAL_STORAGE_DIR / "videos"
+SUBTITLES_DIR = LOCAL_STORAGE_DIR / "subtitles"
 TEMP_DIR = LOCAL_STORAGE_DIR / "temp"
 
-for path in (UPLOADS_DIR, OUTPUTS_DIR, TEMP_DIR):
+for path in (UPLOADS_DIR, VIDEOS_DIR, SUBTITLES_DIR, TEMP_DIR):
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -112,6 +113,11 @@ def run_pipeline_job(
             completed_at=datetime.utcnow().isoformat(),
         )
     finally:
+        if input_path.exists():
+            try:
+                input_path.unlink()
+            except OSError:
+                pass
         if temp_audio_path.exists():
             try:
                 temp_audio_path.unlink()
@@ -148,8 +154,8 @@ def create_job():
     output_srt_name = f"{Path(safe_name).stem}_{job_id}.srt"
 
     input_path = UPLOADS_DIR / source_name
-    output_video_path = OUTPUTS_DIR / output_video_name
-    output_srt_path = OUTPUTS_DIR / output_srt_name
+    output_video_path = VIDEOS_DIR / output_video_name
+    output_srt_path = SUBTITLES_DIR / output_srt_name
     file.save(input_path)
 
     with jobs_lock:
@@ -206,7 +212,11 @@ def get_job(job_id: str):
 @app.get("/api/download/<filename>")
 def download_output(filename: str):
     safe_name = secure_filename(filename)
-    return send_from_directory(OUTPUTS_DIR, safe_name, as_attachment=True)
+    candidate_paths = [VIDEOS_DIR / safe_name, SUBTITLES_DIR / safe_name]
+    for path in candidate_paths:
+        if path.exists() and path.is_file():
+            return send_from_directory(path.parent, safe_name, as_attachment=True)
+    return jsonify({"error": "File not found."}), 404
 
 
 if __name__ == "__main__":

@@ -20,9 +20,9 @@
       <div class="hero-chips">
         <span class="chip">No cloud upload required</span>
         <span class="chip">Storage stays local</span>
-        <span class="chip">One-click download</span>
+        <span class="chip">Outputs saved automatically</span>
       </div>
-      <p class="storage-note">Storage path: <code>local_storage/</code> in the project folder.</p>
+      <p class="storage-note">Storage path: <code>local_storage/videos</code> and <code>local_storage/subtitles</code> (uploads/temp are auto-cleaned).</p>
     </section>
 
     <section class="grid-two">
@@ -114,10 +114,7 @@
       </div>
       <p id="progress-text" class="progress-text">0%</p>
 
-      <div id="actions" class="actions hidden">
-        <a id="download-video-link" class="btn-secondary hidden" href="#">Download captioned video</a>
-        <a id="download-srt-link" class="btn-secondary hidden" href="#">Download SRT subtitles</a>
-      </div>
+      <p id="saved-location" class="saved-location hidden"></p>
 
       <details id="logs-panel" class="logs-panel hidden">
         <summary>Processing log</summary>

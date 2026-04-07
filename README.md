@@ -97,10 +97,11 @@ All files stay on your computer under:
 
 ```text
 local_storage/
-├── uploads/
-├── outputs/
-└── temp/
+├── videos/      # Final captioned videos
+└── subtitles/   # Final .srt files
 ```
+
+Note: `uploads/` and `temp/` are working folders and are automatically cleaned after processing.
 
 ## Usage
 

@@ -7,9 +7,7 @@ const statusPill = document.getElementById("status-pill");
 const stageText = document.getElementById("stage-text");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
-const actions = document.getElementById("actions");
-const downloadVideoLink = document.getElementById("download-video-link");
-const downloadSrtLink = document.getElementById("download-srt-link");
+const savedLocation = document.getElementById("saved-location");
 const logsPanel = document.getElementById("logs-panel");
 const logOutput = document.getElementById("log-output");
 
@@ -38,11 +36,9 @@ function setBusy(isBusy) {
   submitBtn.textContent = isBusy ? "Processing..." : "Generate captions";
 }
 
-function resetDownloadLinks() {
-  downloadVideoLink.classList.add("hidden");
-  downloadSrtLink.classList.add("hidden");
-  downloadVideoLink.removeAttribute("href");
-  downloadSrtLink.removeAttribute("href");
+function resetSavedLocation() {
+  savedLocation.classList.add("hidden");
+  savedLocation.textContent = "";
 }
 
 function stopPolling() {
@@ -77,16 +73,19 @@ async function fetchJobStatus() {
 
     if (data.status === "completed") {
       setBusy(false);
-      actions.classList.remove("hidden");
-      resetDownloadLinks();
+      const savedPaths = [];
       if (data.output_video_filename) {
-        downloadVideoLink.href = `/api/download/${encodeURIComponent(data.output_video_filename)}`;
-        downloadVideoLink.classList.remove("hidden");
+        savedPaths.push("local_storage/videos/");
       }
       if (data.output_srt_filename) {
-        downloadSrtLink.href = `/api/download/${encodeURIComponent(data.output_srt_filename)}`;
-        downloadSrtLink.classList.remove("hidden");
+        savedPaths.push("local_storage/subtitles/");
       }
+      const locationText =
+        savedPaths.length > 0
+          ? `Saved to: ${savedPaths.join(" and ")}`
+          : "Saved to local storage.";
+      savedLocation.textContent = locationText;
+      savedLocation.classList.remove("hidden");
       setStatus("completed", "Captioned video ready.");
       stopPolling();
       return;
@@ -109,8 +108,7 @@ async function fetchJobStatus() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  actions.classList.add("hidden");
-  resetDownloadLinks();
+  resetSavedLocation();
   logsPanel.classList.add("hidden");
   logOutput.textContent = "";
   setProgress(0);

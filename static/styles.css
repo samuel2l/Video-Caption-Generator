@@ -289,6 +289,16 @@ select:focus {
   gap: 10px;
 }
 
+.saved-location {
+  margin-top: 12px;
+  color: #355487;
+  background: #eef4ff;
+  border: 1px solid #d3e0f8;
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 0.9rem;
+}
+
 .logs-panel {
   margin-top: 14px;
   border-top: 1px solid var(--border);
