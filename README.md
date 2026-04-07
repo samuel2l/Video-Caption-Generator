@@ -1,6 +1,27 @@
 # Caption Generator
 
-A Python tool for automatically generating and burning subtitles into videos. Supports automatic language detection, translation to English, and subtitle burning using Whisper AI and MoviePy.
+A local-first video caption generator that runs on your own computer. It can automatically transcribe, translate to English, and burn subtitles into videos using Whisper AI and MoviePy.
+
+## Why This Exists (Storage Cost Problem)
+
+Many caption tools are paid services because video upload/download storage is expensive for providers:
+
+- Large video uploads consume server storage and bandwidth.
+- Generated outputs (captioned videos + subtitle files) also need storage.
+- Long retention and high traffic increase infrastructure cost.
+
+This project avoids that problem by running on `localhost` and storing everything directly on your machine:
+
+- You upload from your own computer.
+- Processing happens locally.
+- Output files are saved locally in this project folder.
+- No cloud storage required for normal usage.
+
+Simple startup command:
+
+```bash
+python3 app.py
+```
 
 ## Features
 
@@ -39,6 +60,47 @@ pip install moviepy pillow whisper openai-whisper srt numpy
    - **macOS**: `brew install ffmpeg`
    - **Linux**: `sudo apt-get install ffmpeg` (or your package manager)
    - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
+5. **Install web app dependency**:
+```bash
+pip install flask
+```
+
+## Run as a Local Web App (Recommended)
+
+Use this when you want a UI for file upload + processing + local download.
+
+### 1) Start the app
+
+```bash
+python3 app.py
+```
+
+### 2) Open the UI
+
+Go to:
+
+```text
+http://127.0.0.1:5000
+```
+
+### 3) Use the interface
+
+1. Choose a video file from your computer.
+2. Pick model/style options.
+3. Click **Generate captions**.
+4. Download the output when processing completes.
+
+### 4) Where files are stored
+
+All files stay on your computer under:
+
+```text
+local_storage/
+├── uploads/
+├── outputs/
+└── temp/
+```
 
 ## Usage
 

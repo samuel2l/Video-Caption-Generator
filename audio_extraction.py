@@ -1,4 +1,7 @@
-from moviepy.editor import VideoFileClip
+try:
+    from moviepy.editor import VideoFileClip  # moviepy v1
+except ModuleNotFoundError:
+    from moviepy import VideoFileClip  # moviepy v2
 def extract_audio_from_video(video_path, output_audio_path):
     """
     Extracts audio from a video file and saves it as an audio file.

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Video Caption Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="panel hero">
+      <p class="eyebrow">Run fully on localhost</p>
+      <h1>Video Caption Generator</h1>
+      <p class="subtext">
+        Upload your file, generate English captions, and keep every upload/output on your own computer.
+      </p>
+      <div class="hero-chips">
+        <span class="chip">No cloud upload required</span>
+        <span class="chip">Storage stays local</span>
+        <span class="chip">One-click download</span>
+      </div>
+      <p class="storage-note">Storage path: <code>local_storage/</code> in this project folder.</p>
+    </section>
+
+    <section class="grid-two">
+      <section class="panel">
+        <form id="upload-form" class="form-grid">
+          <label class="dropzone" for="video">
+            <input id="video" name="video" type="file" accept="video/*" required>
+            <span class="drop-title">Drop video here or click to browse</span>
+            <span class="drop-sub">MP4, MOV, MKV, AVI, WEBM, M4V</span>
+            <span id="selected-file" class="drop-file">No file selected</span>
+          </label>
+
+          <div class="field-group">
+            <label class="field">
+              <span>Whisper model</span>
+              <select id="model_size" name="model_size">
+                <option value="tiny">tiny (fastest)</option>
+                <option value="base" selected>base (recommended)</option>
+                <option value="small">small</option>
+                <option value="medium">medium</option>
+                <option value="large">large (slowest)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Font size</span>
+              <input id="fontsize" name="fontsize" type="number" value="24" min="12" max="64">
+            </label>
+          </div>
+
+          <div class="field-group">
+            <label class="field">
+              <span>Font color</span>
+              <select id="fontcolor" name="fontcolor">
+                <option value="white" selected>white</option>
+                <option value="black">black</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Background color</span>
+              <select id="bgcolor" name="bgcolor">
+                <option value="black" selected>black</option>
+                <option value="white">white</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Background opacity</span>
+              <input id="bg_opacity" name="bg_opacity" type="number" value="180" min="0" max="255">
+            </label>
+          </div>
+
+          <button id="submit-btn" type="submit" class="btn-primary">Generate captions</button>
+        </form>
+      </section>
+
+      <section class="panel status-panel">
+      <div class="status-header">
+        <h2>Job Status</h2>
+        <span id="status-pill" class="pill idle">Idle</span>
+      </div>
+
+      <p id="stage-text">Select a file and click Generate captions.</p>
+
+      <div class="progress-track" aria-label="Progress">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <p id="progress-text" class="progress-text">0%</p>
+
+      <div id="actions" class="actions hidden">
+        <a id="download-link" class="btn-secondary" href="#">Download captioned video</a>
+      </div>
+
+      <details id="logs-panel" class="logs-panel hidden">
+        <summary>Processing log</summary>
+        <pre id="log-output"></pre>
+      </details>
+      </section>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

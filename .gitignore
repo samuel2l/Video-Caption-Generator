@@ -1,3 +1,5 @@
 audios/
 videos/
 transcription.srt
+local_storage/
+__pycache__/

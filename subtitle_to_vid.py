@@ -1,6 +1,9 @@
 import os
 import re
-from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+try:
+    from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip  # moviepy v1
+except ModuleNotFoundError:
+    from moviepy import VideoFileClip, ImageClip, CompositeVideoClip, AudioFileClip  # moviepy v2
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -353,7 +356,6 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
         model = whisper.load_model(model_size)
         
         try:
-            from moviepy.editor import AudioFileClip
             audio_clip = AudioFileClip(audio_path)
             duration = audio_clip.duration
             audio_clip.close()
