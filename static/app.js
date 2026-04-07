@@ -82,8 +82,8 @@ async function fetchJobStatus() {
       }
       const locationText =
         savedPaths.length > 0
-          ? `Saved to: ${savedPaths.join(" and ")}`
-          : "Saved to local storage.";
+          ? `Saved inside this project: ${savedPaths.join(" and ")}`
+          : "Saved inside this project (local storage).";
       savedLocation.textContent = locationText;
       savedLocation.classList.remove("hidden");
       setStatus("completed", "Captioned video ready.");
