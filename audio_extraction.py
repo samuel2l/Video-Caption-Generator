@@ -14,7 +14,13 @@ def extract_audio_from_video(video_path, output_audio_path):
 
         video_clip = VideoFileClip(video_path)        
         audio_clip = video_clip.audio        
-        audio_clip.write_audiofile(output_audio_path)        
+        try:
+            audio_clip.write_audiofile(output_audio_path, verbose=False, logger=None)
+        except TypeError:
+            try:
+                audio_clip.write_audiofile(output_audio_path, logger=None)
+            except TypeError:
+                audio_clip.write_audiofile(output_audio_path)
         audio_clip.close()
         video_clip.close()
 
