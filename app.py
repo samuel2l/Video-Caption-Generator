@@ -9,7 +9,11 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
-from subtitle_to_vid import add_english_subtitles_to_video
+from subtitle_to_vid import (
+    burn_subtitles_into_video,
+    extract_audio_from_video,
+    transcribe_audio_to_srt,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -42,14 +46,18 @@ def update_job(job_id: str, **updates) -> None:
 def run_pipeline_job(
     job_id: str,
     input_path: Path,
-    output_path: Path,
+    output_video_path: Path,
+    output_srt_path: Path,
     model_size: str,
     fontsize: int,
     fontcolor: str,
     bgcolor: str,
     bg_opacity: int,
+    output_mode: str,
+    caption_mode: str,
 ) -> None:
     log_stream = io.StringIO()
+    temp_audio_path = TEMP_DIR / f"{job_id}_audio.mp3"
     try:
         update_job(
             job_id,
@@ -60,16 +68,24 @@ def run_pipeline_job(
         )
 
         with redirect_stdout(log_stream), redirect_stderr(log_stream):
-            add_english_subtitles_to_video(
-                input_video_path=str(input_path),
-                output_video_path=str(output_path),
+            extract_audio_from_video(str(input_path), str(temp_audio_path))
+            transcribe_audio_to_srt(
+                str(temp_audio_path),
                 model_size=model_size,
-                fontsize=fontsize,
-                fontcolor=fontcolor,
-                bgcolor=bgcolor,
-                bg_opacity=bg_opacity,
-                keep_temp_files=False,
+                output_srt_path=str(output_srt_path),
+                caption_mode=caption_mode,
             )
+
+            if output_mode in {"burned_video", "both"}:
+                burn_subtitles_into_video(
+                    input_video_path=str(input_path),
+                    srt_file_path=str(output_srt_path),
+                    output_video_path=str(output_video_path),
+                    fontsize=fontsize,
+                    fontcolor=fontcolor,
+                    bgcolor=bgcolor,
+                    bg_opacity=bg_opacity,
+                )
 
         update_job(
             job_id,
@@ -78,7 +94,8 @@ def run_pipeline_job(
             progress=100,
             log=log_stream.getvalue(),
             completed_at=datetime.utcnow().isoformat(),
-            output_filename=output_path.name,
+            output_video_filename=output_video_path.name if output_video_path.exists() else None,
+            output_srt_filename=output_srt_path.name if output_srt_path.exists() else None,
         )
     except Exception as exc:
         update_job(
@@ -90,6 +107,12 @@ def run_pipeline_job(
             log=log_stream.getvalue(),
             completed_at=datetime.utcnow().isoformat(),
         )
+    finally:
+        if temp_audio_path.exists():
+            try:
+                temp_audio_path.unlink()
+            except OSError:
+                pass
 
 
 @app.get("/")
@@ -111,14 +134,18 @@ def create_job():
     fontcolor = request.form.get("fontcolor", "white")
     bgcolor = request.form.get("bgcolor", "black")
     bg_opacity = int(request.form.get("bg_opacity", 180))
+    output_mode = request.form.get("output_mode", "burned_video")
+    caption_mode = request.form.get("caption_mode", "translate_to_english")
 
     safe_name = secure_filename(file.filename)
     job_id = uuid.uuid4().hex[:12]
     source_name = f"{job_id}_{safe_name}"
-    output_name = f"{Path(safe_name).stem}_captioned_{job_id}.mp4"
+    output_video_name = f"{Path(safe_name).stem}_captioned_{job_id}.mp4"
+    output_srt_name = f"{Path(safe_name).stem}_{job_id}.srt"
 
     input_path = UPLOADS_DIR / source_name
-    output_path = OUTPUTS_DIR / output_name
+    output_video_path = OUTPUTS_DIR / output_video_name
+    output_srt_path = OUTPUTS_DIR / output_srt_name
     file.save(input_path)
 
     with jobs_lock:
@@ -130,15 +157,31 @@ def create_job():
             "created_at": datetime.utcnow().isoformat(),
             "input_filename": safe_name,
             "input_path": str(input_path),
-            "output_path": str(output_path),
-            "output_filename": None,
+            "output_video_path": str(output_video_path),
+            "output_srt_path": str(output_srt_path),
+            "output_video_filename": None,
+            "output_srt_filename": None,
+            "output_mode": output_mode,
+            "caption_mode": caption_mode,
             "error": None,
             "log": "",
         }
 
     worker = threading.Thread(
         target=run_pipeline_job,
-        args=(job_id, input_path, output_path, model_size, fontsize, fontcolor, bgcolor, bg_opacity),
+        args=(
+            job_id,
+            input_path,
+            output_video_path,
+            output_srt_path,
+            model_size,
+            fontsize,
+            fontcolor,
+            bgcolor,
+            bg_opacity,
+            output_mode,
+            caption_mode,
+        ),
         daemon=True,
     )
     worker.start()

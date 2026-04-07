@@ -337,18 +337,25 @@ def extract_audio_from_video(video_path, output_audio_path):
         raise
 
 
-def transcribe_and_translate_to_english(audio_path, model_size="base", output_srt_path=None):
+def transcribe_audio_to_srt(
+    audio_path,
+    model_size="base",
+    output_srt_path=None,
+    caption_mode="translate_to_english",
+):
     """
-    Transcribes an audio file using Whisper, automatically detects language,
-    and translates to English. Returns the SRT content and detected language.
+    Transcribes an audio file using Whisper and returns an SRT file.
+    Can either keep original spoken language or translate to English.
 
     Parameters:
     audio_path (str): Path to the input audio file.
     model_size (str): Size of the Whisper model to use (e.g., "tiny", "base", "small", "medium", "large").
     output_srt_path (str, optional): Path to save the SRT file. If None, returns SRT content only.
 
+    caption_mode (str): "translate_to_english" or "original_language".
+
     Returns:
-    tuple: (srt_content, detected_language) where srt_content is the SRT string and detected_language is the language code.
+    tuple: (srt_content, detected_language, caption_language)
     """
     try:
         print(f"Loading Whisper model: {model_size}")
@@ -366,13 +373,17 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
         except:
             pass
         
-        print(f"Transcribing and translating audio: {audio_path}")
+        task = "translate" if caption_mode == "translate_to_english" else "transcribe"
+        action = "translating to English" if task == "translate" else "keeping original language"
+
+        print(f"Transcribing audio: {audio_path}")
+        print(f"  Mode: {action}")
         print(f"  (This may take a while for long videos...)")
-        result = model.transcribe(audio_path, task="translate")
+        result = model.transcribe(audio_path, task=task)
         
         detected_language = result.get("language", "unknown")
         print(f"Detected language: {detected_language}")
-        print(f"Translating to English...")
+        caption_language = "english" if task == "translate" else detected_language
         
 
         segments = []
@@ -395,7 +406,7 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
                 srt_file.write(srt_content)
             print(f"SRT file saved to: {output_srt_path}")
         
-        return srt_content, detected_language
+        return srt_content, detected_language, caption_language
         
     except Exception as e:
         print(f"An error occurred during transcription: {e}")
@@ -405,7 +416,8 @@ def transcribe_and_translate_to_english(audio_path, model_size="base", output_sr
 def add_english_subtitles_to_video(input_video_path, output_video_path, 
                                    model_size="base", fontsize=12, fontcolor='white',
                                    bgcolor='black', bg_opacity=0, 
-                                   keep_temp_files=False):
+                                   keep_temp_files=False,
+                                   caption_mode="translate_to_english"):
     """
     Complete pipeline: Extracts audio from video, transcribes and translates to English,
     then burns the subtitles into the video.
@@ -453,18 +465,19 @@ def add_english_subtitles_to_video(input_video_path, output_video_path,
         print("="*60)
         extract_audio_from_video(input_video_path, temp_audio_path)
         
-        # Step 2: Transcribe and translate to English
+        # Step 2: Transcribe audio to SRT
         print("\n" + "="*60)
-        print("STEP 2: Transcribing and translating to English")
+        print("STEP 2: Transcribing audio and generating SRT")
         print("="*60)
-        srt_content, detected_language = transcribe_and_translate_to_english(
+        srt_content, detected_language, caption_language = transcribe_audio_to_srt(
             temp_audio_path, 
             model_size=model_size,
-            output_srt_path=temp_srt_path
+            output_srt_path=temp_srt_path,
+            caption_mode=caption_mode,
         )
         
         print(f"\nOriginal language: {detected_language}")
-        print(f"Translation: English")
+        print(f"Caption language: {caption_language}")
         num_segments = len(srt_content.split('\n\n')) - 1
         print(f"Number of subtitle segments: {num_segments}")
         

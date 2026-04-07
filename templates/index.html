@@ -37,6 +37,25 @@
 
           <div class="field-group">
             <label class="field">
+              <span>Output</span>
+              <select id="output_mode" name="output_mode">
+                <option value="burned_video" selected>Burned subtitles in video (.mp4)</option>
+                <option value="srt_only">SRT only (.srt)</option>
+                <option value="both">Both video and SRT</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Caption language</span>
+              <select id="caption_mode" name="caption_mode">
+                <option value="translate_to_english" selected>Translate to English</option>
+                <option value="original_language">Keep original spoken language</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-group">
+            <label class="field">
               <span>Whisper model</span>
               <select id="model_size" name="model_size">
                 <option value="tiny">tiny (fastest)</option>
@@ -94,7 +113,8 @@
       <p id="progress-text" class="progress-text">0%</p>
 
       <div id="actions" class="actions hidden">
-        <a id="download-link" class="btn-secondary" href="#">Download captioned video</a>
+        <a id="download-video-link" class="btn-secondary hidden" href="#">Download captioned video</a>
+        <a id="download-srt-link" class="btn-secondary hidden" href="#">Download SRT subtitles</a>
       </div>
 
       <details id="logs-panel" class="logs-panel hidden">

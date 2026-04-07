@@ -3,3 +3,4 @@ videos/
 transcription.srt
 local_storage/
 __pycache__/
+myvenv/
