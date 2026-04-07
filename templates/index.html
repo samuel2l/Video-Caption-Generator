@@ -12,7 +12,7 @@
 <body>
   <main class="app-shell">
     <section class="panel hero">
-      <p class="eyebrow">Run fully on localhost</p>
+
       <h1>Video Caption Generator</h1>
       <p class="subtext">
         Upload your file, generate English captions, and keep every upload/output on your own computer.
@@ -22,7 +22,7 @@
         <span class="chip">Storage stays local</span>
         <span class="chip">One-click download</span>
       </div>
-      <p class="storage-note">Storage path: <code>local_storage/</code> in this project folder.</p>
+      <p class="storage-note">Storage path: <code>local_storage/</code> in the project folder.</p>
     </section>
 
     <section class="grid-two">
@@ -43,6 +43,7 @@
                 <option value="srt_only">SRT only (.srt)</option>
                 <option value="both">Both video and SRT</option>
               </select>
+              <small class="field-help">Burned = text is permanently on video. SRT only = separate subtitle file you can load in VLC.</small>
             </label>
 
             <label class="field">
@@ -51,6 +52,7 @@
                 <option value="translate_to_english" selected>Translate to English</option>
                 <option value="original_language">Keep original spoken language</option>
               </select>
+              <small class="field-help">English mode translates subtitles. Original mode keeps captions in the source spoken language.</small>
             </label>
           </div>
 

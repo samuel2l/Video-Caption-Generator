@@ -161,6 +161,12 @@ body {
   font-size: 0.89rem;
 }
 
+.field-help {
+  color: #6e7f9f;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 input,
 select {
   width: 100%;
